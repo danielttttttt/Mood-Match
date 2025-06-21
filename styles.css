@@ -206,6 +206,36 @@ button.disabled {
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
 }
 
+/* Only apply hover effects to cards that aren't flipped or matched */
+.card:not(.flipped):not(.matched):hover {
+    transform: translateY(-5px);
+    box-shadow: 0 8px 20px rgba(0, 0, 0, 0.2);
+}
+
+/* Hint effect for cards */
+.card.hint {
+    animation: hintPulse 1s ease-in-out infinite;
+    box-shadow: 0 0 20px 5px rgba(255, 215, 0, 0.7) !important;
+    transform: scale(1.05) !important;
+    z-index: 10;
+}
+
+@keyframes hintPulse {
+    0% { box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5); }
+    50% { box-shadow: 0 0 25px 8px rgba(255, 215, 0, 0.9); }
+    100% { box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5); }
+}
+
+/* Ensure the transform is preserved for flipped state */
+.card.flipped {
+    transform: rotateY(0) !important;
+}
+
+/* Ensure the transform is preserved for unflipped state */
+.card:not(.flipped) {
+    transform: rotateY(180deg) !important;
+}
+
 #new-game {
     background: linear-gradient(45deg, #6B73FF, #000DFF);
     color: white;

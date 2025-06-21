@@ -285,8 +285,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this === firstCard) return;
         if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
         
-        // Add flip animation
-        this.style.transform = 'rotateY(0deg)';
+        // Add flip class which will trigger the transform via CSS
         this.classList.add('flipped');
         playSound('flip');
         
@@ -345,10 +344,7 @@ document.addEventListener('DOMContentLoaded', () => {
         lockBoard = true;
         
         setTimeout(() => {
-            firstCard.style.transform = 'rotateY(180deg)';
             firstCard.classList.remove('flipped');
-            
-            secondCard.style.transform = 'rotateY(180deg)';
             secondCard.classList.remove('flipped');
             
             resetBoard();
