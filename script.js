@@ -1,4 +1,17 @@
 document.addEventListener('DOMContentLoaded', () => {
+    // DOM Elements
+    const gameBoard = document.getElementById('game-board');
+    const newGameBtn = document.getElementById('new-game');
+    const hintBtn = document.getElementById('hint-btn');
+    const settingsBtn = document.getElementById('settings-btn');
+    const settingsPanel = document.getElementById('settings-panel');
+    const messageEl = document.getElementById('message');
+    const difficultySelect = document.getElementById('difficulty');
+    const themeSelect = document.getElementById('theme');
+    const soundToggle = document.getElementById('sound-toggle');
+    const timerEl = document.getElementById('timer');
+    const bestScoreEl = document.getElementById('best-score');
+    
     // Game state
     let cards = [];
     let hasFlippedCard = false;
@@ -8,15 +21,35 @@ document.addEventListener('DOMContentLoaded', () => {
     let moves = 0;
     let seconds = 0;
     let timerInterval = null;
-    const totalPairs = 8; // 4x4 grid (16 cards total)
-    
-    // DOM elements
-    const gameBoard = document.getElementById('game-board');
-    const newGameBtn = document.getElementById('new-game');
-    const hintBtn = document.getElementById('hint-btn');
-    const messageEl = document.getElementById('message');
     let hintTimeout = null;
     let hintActive = false;
+    let totalPairs = 8; // Default to medium (4x4 grid)
+    let soundEnabled = true;
+    let currentTheme = 'emojis';
+    
+    // Game settings
+    let gameSettings = {
+        difficulty: 'medium',
+        theme: 'emojis',
+        sound: true
+    };
+    
+    // Sound elements
+    const sounds = {
+        flip: document.getElementById('flip-sound'),
+        match: document.getElementById('match-sound'),
+        win: document.getElementById('win-sound'),
+        hint: document.getElementById('hint-sound')
+    };
+    
+    // Play sound if enabled
+    const playSound = (soundName) => {
+        const sound = sounds[soundName];
+        if (sound && gameSettings.sound) {
+            sound.currentTime = 0;
+            sound.play().catch(e => console.log('Could not play sound:', e));
+        }
+    };
     
     // Emoji pairs for the game
     const emojis = ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴'];
@@ -55,10 +88,49 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Load settings from localStorage
+    function loadSettings() {
+        const savedSettings = localStorage.getItem('gameSettings');
+        if (savedSettings) {
+            gameSettings = {...gameSettings, ...JSON.parse(savedSettings)};
+        }
+        
+        // Update UI to match settings
+        difficultySelect.value = gameSettings.difficulty;
+        themeSelect.value = gameSettings.theme;
+        soundToggle.checked = gameSettings.sound;
+    }
+    
+    // Save settings to localStorage
+    function saveSettings() {
+        localStorage.setItem('gameSettings', JSON.stringify(gameSettings));
+    }
+    
+    // Apply theme to the game
+    function applyTheme(theme) {
+        document.body.setAttribute('data-theme', theme);
+    }
+    
     // Initialize game
     function initGame() {
         // Reset game state
         gameBoard.innerHTML = ''; // Clear the board
+        gameBoard.className = 'game-board';
+        
+        // Set up board based on difficulty
+        const difficulty = gameSettings.difficulty;
+        if (difficulty === 'easy') {
+            totalPairs = 6;
+            gameBoard.classList.remove('hard');
+        } else if (difficulty === 'hard') {
+            totalPairs = 18;
+            gameBoard.classList.add('hard');
+        } else { // medium
+            totalPairs = 8;
+            gameBoard.classList.remove('hard');
+        }
+        
+        // Reset game state
         cards = [];
         hasFlippedCard = false;
         lockBoard = false;
@@ -66,6 +138,7 @@ document.addEventListener('DOMContentLoaded', () => {
         secondCard = null;
         matches = 0;
         moves = 0;
+        seconds = 0;
         
         // Reset and start timer
         stopTimer();
@@ -75,17 +148,30 @@ document.addEventListener('DOMContentLoaded', () => {
         messageEl.textContent = 'Find all matching pairs!';
         messageEl.className = 'message';
         
+        // Apply theme
+        applyTheme(gameSettings.theme);
+        
         // Create cards
         createCards();
     }
     
     // Create and shuffle cards
     function createCards() {
+        // Get emojis based on theme
+        let cardSymbols = [];
+        if (gameSettings.theme === 'animals') {
+            cardSymbols = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'];
+        } else if (gameSettings.theme === 'fruits') {
+            cardSymbols = ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑'];
+        } else { // emojis
+            cardSymbols = ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴', '🤠', '😇', '🤓', '😜'];
+        }
+        
         // Create pairs of cards
         const cardEmojis = [];
         for (let i = 0; i < totalPairs; i++) {
-            cardEmojis.push(emojis[i]);
-            cardEmojis.push(emojis[i]);
+            cardEmojis.push(cardSymbols[i % cardSymbols.length]);
+            cardEmojis.push(cardSymbols[i % cardSymbols.length]);
         }
         
         // Shuffle the cards
@@ -120,12 +206,13 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // Handle card flip
-    function flipCard() {
+    const flipCard = function() {
         if (lockBoard) return;
         if (this === firstCard) return;
         if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
         
         this.classList.add('flipped');
+        playSound('flip');
         
         if (!hasFlippedCard) {
             // First card flipped
@@ -138,9 +225,9 @@ document.addEventListener('DOMContentLoaded', () => {
         secondCard = this;
         moves++;
         checkForMatch();
-    }
+    };
     
-    // Check for a match
+    // Check if the flipped cards match
     function checkForMatch() {
         const isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
         
@@ -160,110 +247,39 @@ document.addEventListener('DOMContentLoaded', () => {
     function disableCards() {
         firstCard.classList.add('matched');
         secondCard.classList.add('matched');
+        
         resetBoard();
     }
     
-    // Flip cards back if no match
+    // Unflip cards that don't match
     function unflipCards() {
         lockBoard = true;
         
         setTimeout(() => {
             firstCard.classList.remove('flipped');
             secondCard.classList.remove('flipped');
+            
             resetBoard();
         }, 1000);
     }
     
-    // Reset board state
+    // Reset the board state
     function resetBoard() {
         [hasFlippedCard, lockBoard] = [false, false];
         [firstCard, secondCard] = [null, null];
     }
-    
-    // End game
-    function endGame() {
-        stopTimer();
-        const timeTaken = formatTime(seconds);
-        messageEl.textContent = `🎉 You won in ${moves} moves! Time: ${timeTaken}`;
-        messageEl.classList.add('success');
-        
-        // Update best score if this one is better
-        const bestScoreEl = document.getElementById('best-score');
-        const bestScore = localStorage.getItem('bestScore');
-        if (!bestScore || seconds < parseInt(bestScore)) {
-            localStorage.setItem('bestScore', seconds.toString());
-            bestScoreEl.textContent = timeTaken;
-        }
-        
-        // Create container for confetti
-        const container = document.createElement('div');
-        container.style.position = 'fixed';
-        container.style.top = '0';
-        container.style.left = '0';
-        container.style.width = '100%';
-        container.style.height = '100%';
-        container.style.pointerEvents = 'none';
-        container.style.zIndex = '1000';
-        document.body.appendChild(container);
-        
-        // Add confetti effect
-        const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-        
-        for (let i = 0; i < 100; i++) {
-            setTimeout(() => {
-                const confetti = document.createElement('div');
-                confetti.className = 'confetti';
-                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-                confetti.style.left = Math.random() * 100 + 'vw';
-                confetti.style.top = '-20px';
-                confetti.style.width = (Math.random() * 10 + 5) + 'px';
-                confetti.style.height = (Math.random() * 10 + 5) + 'px';
-                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
-                confetti.style.position = 'fixed';
-                confetti.style.zIndex = '1000';
-                
-                container.appendChild(confetti);
-                
-                // Animate confetti
-                const animation = confetti.animate([
-                    { 
-                        top: '-20px', 
-                        transform: `rotate(0deg) scale(1)`,
-                        opacity: 1
-                    },
-                    { 
-                        top: '100vh', 
-                        transform: `rotate(${Math.random() * 360}deg) scale(0.5)`,
-                        opacity: 0
-                    }
-                ], {
-                    duration: 2000 + Math.random() * 3000,
-                    easing: 'cubic-bezier(0.1, 0.8, 0.8, 1)'
-                });
-                
-                // Remove confetti after animation
-                animation.onfinish = () => {
-                    if (confetti.parentNode) {
-                        confetti.remove();
-                    }
-                    
-                    // Remove container when all confetti is gone
-                    if (container.children.length === 0) {
-                        container.remove();
-                    }
-                };
-                
-            }, Math.random() * 2000); // Stagger the confetti creation
-        }
-        
-        // Remove container after all animations complete
-        setTimeout(() => {
-            if (container.parentNode) {
-                container.remove();
-            }
-        }, 10000);
-    }
-    
+
+    // Reset and start timer
+    stopTimer();
+    startTimer();
+
+    // Update UI
+    messageEl.textContent = 'Find all matching pairs!';
+    messageEl.className = 'message';
+
+    // Create cards
+    createCards();
+
     // Toggle settings panel
     function toggleSettings() {
         settingsPanel.classList.toggle('show');
@@ -272,19 +288,19 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show a hint by highlighting a matching pair
     function showHint() {
         if (hintActive || matches === totalPairs) return;
-        
+
         // Disable hint button temporarily
         hintActive = true;
         hintBtn.disabled = true;
         hintBtn.classList.add('disabled');
-        
+
         // Find all unpaired cards
         const unpairedCards = Array.from(document.querySelectorAll('.card:not(.matched)'));
-        
+
         // Find a matching pair
         let firstCard, secondCard;
         const emojiMap = new Map();
-        
+
         for (const card of unpairedCards) {
             const emoji = card.dataset.emoji;
             if (emojiMap.has(emoji)) {
@@ -294,24 +310,24 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             emojiMap.set(emoji, card);
         }
-        
+
         if (firstCard && secondCard) {
             // Highlight the matching pair
             firstCard.classList.add('hint');
             secondCard.classList.add('hint');
-            
+
             // Play hint sound if available
             const hintSound = document.getElementById('hint-sound');
             if (hintSound) {
                 hintSound.currentTime = 0;
                 hintSound.play().catch(e => console.log('Could not play hint sound'));
             }
-            
+
             // Remove highlight after delay
             hintTimeout = setTimeout(() => {
                 firstCard.classList.remove('hint');
                 secondCard.classList.remove('hint');
-                
+
                 // Re-enable hint button after cooldown
                 setTimeout(() => {
                     hintBtn.disabled = false;
@@ -321,35 +337,45 @@ document.addEventListener('DOMContentLoaded', () => {
             }, 1500);
         }
     }
-    
+
     // Event Listeners
     newGameBtn.addEventListener('click', () => {
         // Clear any active hints when starting a new game
         if (hintTimeout) clearTimeout(hintTimeout);
         hintActive = false;
+        const bestTime = localStorage.getItem('bestTime');
+        if (bestTime) {
+            bestScoreEl.textContent = formatTime(parseInt(bestTime));
+        }
+        
+        // Initialize the game
         initGame();
     });
-    
-    hintBtn.addEventListener('click', showHint);
-    
+
+    // Settings button event listener
     settingsBtn.addEventListener('click', toggleSettings);
-    
-    // Settings changes
-    difficultySelect.addEventListener('change', initGame);
-    themeSelect.addEventListener('change', () => {
-        currentTheme = themeSelect.value;
-        initGame();
+
+    // Hint button event listener
+    hintBtn.addEventListener('click', showHint);
+
+    // Settings change event listeners
+    difficultySelect.addEventListener('change', (e) => {
+        gameSettings.difficulty = e.target.value;
+        saveSettings();
     });
+
+    themeSelect.addEventListener('change', (e) => {
+        gameSettings.theme = e.target.value;
+        applyTheme(e.target.value);
+        saveSettings();
+    });
+
     soundToggle.addEventListener('change', (e) => {
-        soundEnabled = e.target.checked;
+        gameSettings.sound = e.target.checked;
+        saveSettings();
     });
-    
-    // Load best time
-    const bestTime = localStorage.getItem('bestTime');
-    if (bestTime) {
-        bestScoreDisplay.textContent = formatTime(parseInt(bestTime));
-    }
-    
-    // Initialize the game
+
+    // Load settings and initialize game
+    loadSettings();
     initGame();
 });
