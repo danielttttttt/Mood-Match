@@ -237,7 +237,7 @@ document.addEventListener('DOMContentLoaded', () => {
             cardBack.textContent = emoji;
             
             // Make sure card starts face down
-            card.style.transform = 'rotateY(0deg)';
+            card.style.transform = 'rotateY(180deg)';
             
             card.appendChild(cardFront);
             card.appendChild(cardBack);
@@ -245,6 +245,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Initialize card state
             card.classList.remove('flipped', 'matched');
             card.style.animation = '';
+            card.style.pointerEvents = 'auto';
             
             card.addEventListener('click', flipCard);
             
@@ -285,7 +286,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
         
         // Add flip animation
-        this.style.transform = 'rotateY(180deg)';
+        this.style.transform = 'rotateY(0deg)';
         this.classList.add('flipped');
         playSound('flip');
         
@@ -344,7 +345,10 @@ document.addEventListener('DOMContentLoaded', () => {
         lockBoard = true;
         
         setTimeout(() => {
+            firstCard.style.transform = 'rotateY(180deg)';
             firstCard.classList.remove('flipped');
+            
+            secondCard.style.transform = 'rotateY(180deg)';
             secondCard.classList.remove('flipped');
             
             resetBoard();

@@ -248,7 +248,7 @@ button.disabled {
     position: relative;
     box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
     aspect-ratio: 1;
-    transform: rotateY(0);
+    transform: rotateY(180deg); /* Start with cards face down */
     perspective: 1000px;
 }
 
@@ -272,6 +272,13 @@ button.disabled {
     font-weight: bold;
     transform: rotateY(180deg);
     backface-visibility: hidden;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
 }
 
 .card .card-back {
@@ -279,14 +286,21 @@ button.disabled {
     color: white;
     transform: rotateY(0);
     backface-visibility: hidden;
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    border-radius: 8px;
 }
 
 .card.flipped {
-    transform: rotateY(180deg);
+    transform: rotateY(0);
 }
 
 .card.matched {
-    transform: rotateY(180deg);
+    transform: rotateY(0);
     opacity: 0.8;
     pointer-events: none;
 }
