@@ -236,14 +236,19 @@ button.disabled {
 }
 
 .card {
-    aspect-ratio: 1;
-    background: white;
+    background-color: #f8f8f8;
     border-radius: 10px;
     cursor: pointer;
-    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-size: 2.5em;
+    transition: transform 0.6s ease, box-shadow 0.3s ease;
     transform-style: preserve-3d;
     position: relative;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+    aspect-ratio: 1;
+    transform: rotateY(0);
     perspective: 1000px;
 }
 
@@ -262,14 +267,28 @@ button.disabled {
 }
 
 .card .card-front {
-    background: linear-gradient(45deg, #6B73FF, #000DFF);
-    color: white;
+    background: linear-gradient(145deg, #f0f0f0, #ffffff);
+    color: #666;
+    font-weight: bold;
     transform: rotateY(180deg);
+    backface-visibility: hidden;
 }
 
 .card .card-back {
-    background: white;
-    transform: rotateY(0deg);
+    background: linear-gradient(45deg, #6B73FF, #000DFF);
+    color: white;
+    transform: rotateY(0);
+    backface-visibility: hidden;
+}
+
+.card.flipped {
+    transform: rotateY(180deg);
+}
+
+.card.matched {
+    transform: rotateY(180deg);
+    opacity: 0.8;
+    pointer-events: none;
 }
 
 .card:hover {

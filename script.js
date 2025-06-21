@@ -302,10 +302,17 @@ document.addEventListener('DOMContentLoaded', () => {
         secondCard = this;
         secondCard.style.animation = 'bounce 0.5s ease';
         
+        // Lock the board while checking for match
+        lockBoard = true;
+        
         // Update moves and check for match
         moves++;
         calculateStars();
-        checkForMatch();
+        
+        // Check for match after animation
+        setTimeout(() => {
+            checkForMatch();
+        }, 500);
     };
     
     // Check if the flipped cards match
