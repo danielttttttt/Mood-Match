@@ -239,12 +239,8 @@ button.disabled {
     aspect-ratio: 1;
     background: white;
     border-radius: 10px;
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    font-size: 2rem;
     cursor: pointer;
-    transition: all 0.3s ease;
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
     transform-style: preserve-3d;
     position: relative;
@@ -252,10 +248,28 @@ button.disabled {
 }
 
 .card .card-content {
-    transform: rotateY(180deg);
+    position: absolute;
+    width: 100%;
+    height: 100%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
     backface-visibility: hidden;
     pointer-events: none;
     user-select: none;
+    font-size: 2rem;
+    border-radius: 10px;
+}
+
+.card .card-front {
+    background: linear-gradient(45deg, #6B73FF, #000DFF);
+    color: white;
+    transform: rotateY(180deg);
+}
+
+.card .card-back {
+    background: white;
+    transform: rotateY(0deg);
 }
 
 .card:hover {
@@ -267,8 +281,9 @@ button.disabled {
     background: #e8f5e9;
     transform: rotateY(180deg) scale(0.95);
     cursor: default;
-    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 0 15px rgba(76, 175, 80, 0.7);
     pointer-events: none;
+    animation: pop 0.3s ease-out;
 }
 
 .card.hint {
@@ -313,14 +328,39 @@ button.disabled {
     font-weight: 500;
 }
 
-/* Stars */
-#stars {
+/* Star Rating */
+.star-rating {
+    display: flex;
+    justify-content: center;
+    margin: 10px 0;
+    gap: 5px;
+}
+
+.star {
+    font-size: 1.8rem;
+    color: #ddd;
+    transition: all 0.3s ease;
+}
+
+.star.filled {
     color: #FFD700;
-    font-size: 1.2rem;
-    letter-spacing: 2px;
+    text-shadow: 0 0 5px rgba(255, 215, 0, 0.7);
 }
 
 /* Animations */
+/* Animations */
+@keyframes pop {
+    0% { transform: rotateY(180deg) scale(1); }
+    50% { transform: rotateY(180deg) scale(1.1); }
+    100% { transform: rotateY(180deg) scale(0.95); }
+}
+
+@keyframes bounce {
+    0%, 20%, 50%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-15px); }
+    60% { transform: translateY(-7px); }
+}
+
 @keyframes celebration {
     0% { transform: scale(1); }
     50% { transform: scale(1.1); }

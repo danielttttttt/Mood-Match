@@ -19,6 +19,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let firstCard, secondCard;
     let matches = 0;
     let moves = 0;
+    let maxMoves = 0;
     let seconds = 0;
     let timerInterval = null;
     let hintTimeout = null;
@@ -26,6 +27,7 @@ document.addEventListener('DOMContentLoaded', () => {
     let totalPairs = 8; // Default to medium (4x4 grid)
     let soundEnabled = true;
     let currentTheme = 'emojis';
+    let stars = 3; // Maximum stars by default
     
     // Game settings
     let gameSettings = {
@@ -121,14 +123,21 @@ document.addEventListener('DOMContentLoaded', () => {
         const difficulty = gameSettings.difficulty;
         if (difficulty === 'easy') {
             totalPairs = 6;
+            maxMoves = 20; // More lenient for easy mode
             gameBoard.classList.remove('hard');
         } else if (difficulty === 'hard') {
             totalPairs = 18;
+            maxMoves = 50; // More challenging for hard mode
             gameBoard.classList.add('hard');
         } else { // medium
             totalPairs = 8;
+            maxMoves = 30; // Balanced for medium
             gameBoard.classList.remove('hard');
         }
+        
+        // Reset stars to max
+        stars = 3;
+        updateStarRating();
         
         // Reset game state
         cards = [];
@@ -155,6 +164,41 @@ document.addEventListener('DOMContentLoaded', () => {
         createCards();
     }
     
+    // Update star rating display
+    function updateStarRating() {
+        const starElements = document.querySelectorAll('.star');
+        starElements.forEach((star, index) => {
+            if (index < stars) {
+                star.classList.add('filled');
+            } else {
+                star.classList.remove('filled');
+            }
+        });
+    }
+    
+    // Calculate stars based on moves
+    function calculateStars() {
+        const movesElement = document.getElementById('moves');
+        if (movesElement) {
+            movesElement.textContent = moves;
+        }
+        
+        const maxPossibleMoves = maxMoves;
+        const movePercentage = (moves / maxPossibleMoves) * 100;
+        
+        if (movePercentage < 60) {
+            stars = 3; // 3 stars for excellent performance
+        } else if (movePercentage < 80) {
+            stars = 2; // 2 stars for good performance
+        } else if (movePercentage < 100) {
+            stars = 1; // 1 star for average performance
+        } else {
+            stars = 0; // 0 stars for poor performance
+        }
+        
+        updateStarRating();
+    }
+
     // Create and shuffle cards
     function createCards() {
         // Get emojis based on theme
@@ -183,12 +227,41 @@ document.addEventListener('DOMContentLoaded', () => {
             card.classList.add('card');
             card.dataset.emoji = emoji;
             
-            const cardContent = document.createElement('div');
-            cardContent.classList.add('card-content');
-            cardContent.textContent = emoji;
+            // Create card faces
+            const cardFront = document.createElement('div');
+            cardFront.classList.add('card-content', 'card-front');
+            cardFront.textContent = '?';
             
-            card.appendChild(cardContent);
+            const cardBack = document.createElement('div');
+            cardBack.classList.add('card-content', 'card-back');
+            cardBack.textContent = emoji;
+            
+            // Make sure card starts face down
+            card.style.transform = 'rotateY(0deg)';
+            
+            card.appendChild(cardFront);
+            card.appendChild(cardBack);
+            
+            // Initialize card state
+            card.classList.remove('flipped', 'matched');
+            card.style.animation = '';
+            
             card.addEventListener('click', flipCard);
+            
+            // Add hover effect
+            card.addEventListener('mouseenter', () => {
+                if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
+                    card.style.transform = 'translateY(-5px) scale(1.02)';
+                    card.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.15)';
+                }
+            });
+            
+            card.addEventListener('mouseleave', () => {
+                if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
+                    card.style.transform = '';
+                    card.style.boxShadow = '';
+                }
+            });
             
             gameBoard.appendChild(card);
             cards.push(card);
@@ -211,6 +284,8 @@ document.addEventListener('DOMContentLoaded', () => {
         if (this === firstCard) return;
         if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
         
+        // Add flip animation
+        this.style.transform = 'rotateY(180deg)';
         this.classList.add('flipped');
         playSound('flip');
         
@@ -218,12 +293,18 @@ document.addEventListener('DOMContentLoaded', () => {
             // First card flipped
             hasFlippedCard = true;
             firstCard = this;
+            // Add subtle bounce effect
+            this.style.animation = 'bounce 0.5s ease';
             return;
         }
         
         // Second card flipped
         secondCard = this;
+        secondCard.style.animation = 'bounce 0.5s ease';
+        
+        // Update moves and check for match
         moves++;
+        calculateStars();
         checkForMatch();
     };
     
