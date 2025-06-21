@@ -179,6 +179,17 @@ button {
     gap: 8px;
 }
 
+button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+button.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
 .icon-btn {
     width: 36px;
     height: 36px;
@@ -258,6 +269,23 @@ button {
     cursor: default;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
     pointer-events: none;
+}
+
+.card.hint {
+    animation: hint-pulse 0.5s infinite alternate;
+    box-shadow: 0 0 15px 5px rgba(255, 215, 0, 0.7);
+    z-index: 10;
+}
+
+@keyframes hint-pulse {
+    from {
+        box-shadow: 0 0 10px 2px rgba(255, 215, 0, 0.5);
+        transform: scale(1.05);
+    }
+    to {
+        box-shadow: 0 0 20px 8px rgba(255, 215, 0, 0.9);
+        transform: scale(1.1);
+    }
 }
 
 .card.flipped {

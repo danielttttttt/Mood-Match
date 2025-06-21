@@ -6,16 +6,55 @@ document.addEventListener('DOMContentLoaded', () => {
     let firstCard, secondCard;
     let matches = 0;
     let moves = 0;
+    let seconds = 0;
+    let timerInterval = null;
     const totalPairs = 8; // 4x4 grid (16 cards total)
     
     // DOM elements
     const gameBoard = document.getElementById('game-board');
     const newGameBtn = document.getElementById('new-game');
+    const hintBtn = document.getElementById('hint-btn');
     const messageEl = document.getElementById('message');
+    let hintTimeout = null;
+    let hintActive = false;
     
     // Emoji pairs for the game
     const emojis = ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴'];
     
+    // Format time as MM:SS
+    function formatTime(seconds) {
+        const mins = Math.floor(seconds / 60);
+        const secs = seconds % 60;
+        return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
+    }
+
+    // Update timer display
+    function updateTimer() {
+        document.getElementById('timer').textContent = formatTime(seconds);
+    }
+
+    // Start the game timer
+    function startTimer() {
+        // Clear any existing timer
+        if (timerInterval) clearInterval(timerInterval);
+        
+        // Reset and start the timer
+        seconds = 0;
+        updateTimer();
+        timerInterval = setInterval(() => {
+            seconds++;
+            updateTimer();
+        }, 1000);
+    }
+
+    // Stop the game timer
+    function stopTimer() {
+        if (timerInterval) {
+            clearInterval(timerInterval);
+            timerInterval = null;
+        }
+    }
+
     // Initialize game
     function initGame() {
         // Reset game state
@@ -27,6 +66,10 @@ document.addEventListener('DOMContentLoaded', () => {
         secondCard = null;
         matches = 0;
         moves = 0;
+        
+        // Reset and start timer
+        stopTimer();
+        startTimer();
         
         // Update UI
         messageEl.textContent = 'Find all matching pairs!';
@@ -139,39 +182,86 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // End game
     function endGame() {
-        messageEl.textContent = `🎉 You won in ${moves} moves!`;
+        stopTimer();
+        const timeTaken = formatTime(seconds);
+        messageEl.textContent = `🎉 You won in ${moves} moves! Time: ${timeTaken}`;
         messageEl.classList.add('success');
+        
+        // Update best score if this one is better
+        const bestScoreEl = document.getElementById('best-score');
+        const bestScore = localStorage.getItem('bestScore');
+        if (!bestScore || seconds < parseInt(bestScore)) {
+            localStorage.setItem('bestScore', seconds.toString());
+            bestScoreEl.textContent = timeTaken;
+        }
+        
+        // Create container for confetti
+        const container = document.createElement('div');
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100%';
+        container.style.height = '100%';
+        container.style.pointerEvents = 'none';
+        container.style.zIndex = '1000';
+        document.body.appendChild(container);
         
         // Add confetti effect
         const colors = ['#ff0000', '#00ff00', '#0000ff', '#ffff00', '#ff00ff', '#00ffff'];
-        for (let i = 0; i < 50; i++) {
-            const confetti = document.createElement('div');
-            confetti.className = 'confetti';
-            confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-            confetti.style.left = Math.random() * 100 + 'vw';
-            confetti.style.top = '-20px';
-            confetti.style.width = '10px';
-            confetti.style.height = '10px';
-            confetti.style.position = 'fixed';
-            confetti.style.zIndex = '1000';
-            document.body.appendChild(confetti);
-            
-            // Animate confetti
-            const animation = confetti.animate([
-                { top: '-20px', transform: `rotate(${Math.random() * 360}deg)` },
-                { top: '100vh', transform: `rotate(${Math.random() * 360}deg)` }
-            ], {
-                duration: 2000 + Math.random() * 3000,
-                easing: 'cubic-bezier(0.1, 0.8, 0.8, 1)'
-            });
-            
-            // Remove confetti after animation
-            animation.onfinish = () => {
-                if (confetti.parentNode) {
-                    confetti.remove();
-                }
-            };
+        
+        for (let i = 0; i < 100; i++) {
+            setTimeout(() => {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.top = '-20px';
+                confetti.style.width = (Math.random() * 10 + 5) + 'px';
+                confetti.style.height = (Math.random() * 10 + 5) + 'px';
+                confetti.style.borderRadius = Math.random() > 0.5 ? '50%' : '0';
+                confetti.style.position = 'fixed';
+                confetti.style.zIndex = '1000';
+                
+                container.appendChild(confetti);
+                
+                // Animate confetti
+                const animation = confetti.animate([
+                    { 
+                        top: '-20px', 
+                        transform: `rotate(0deg) scale(1)`,
+                        opacity: 1
+                    },
+                    { 
+                        top: '100vh', 
+                        transform: `rotate(${Math.random() * 360}deg) scale(0.5)`,
+                        opacity: 0
+                    }
+                ], {
+                    duration: 2000 + Math.random() * 3000,
+                    easing: 'cubic-bezier(0.1, 0.8, 0.8, 1)'
+                });
+                
+                // Remove confetti after animation
+                animation.onfinish = () => {
+                    if (confetti.parentNode) {
+                        confetti.remove();
+                    }
+                    
+                    // Remove container when all confetti is gone
+                    if (container.children.length === 0) {
+                        container.remove();
+                    }
+                };
+                
+            }, Math.random() * 2000); // Stagger the confetti creation
         }
+        
+        // Remove container after all animations complete
+        setTimeout(() => {
+            if (container.parentNode) {
+                container.remove();
+            }
+        }, 10000);
     }
     
     // Toggle settings panel
@@ -179,9 +269,69 @@ document.addEventListener('DOMContentLoaded', () => {
         settingsPanel.classList.toggle('show');
     }
     
+    // Show a hint by highlighting a matching pair
+    function showHint() {
+        if (hintActive || matches === totalPairs) return;
+        
+        // Disable hint button temporarily
+        hintActive = true;
+        hintBtn.disabled = true;
+        hintBtn.classList.add('disabled');
+        
+        // Find all unpaired cards
+        const unpairedCards = Array.from(document.querySelectorAll('.card:not(.matched)'));
+        
+        // Find a matching pair
+        let firstCard, secondCard;
+        const emojiMap = new Map();
+        
+        for (const card of unpairedCards) {
+            const emoji = card.dataset.emoji;
+            if (emojiMap.has(emoji)) {
+                firstCard = emojiMap.get(emoji);
+                secondCard = card;
+                break;
+            }
+            emojiMap.set(emoji, card);
+        }
+        
+        if (firstCard && secondCard) {
+            // Highlight the matching pair
+            firstCard.classList.add('hint');
+            secondCard.classList.add('hint');
+            
+            // Play hint sound if available
+            const hintSound = document.getElementById('hint-sound');
+            if (hintSound) {
+                hintSound.currentTime = 0;
+                hintSound.play().catch(e => console.log('Could not play hint sound'));
+            }
+            
+            // Remove highlight after delay
+            hintTimeout = setTimeout(() => {
+                firstCard.classList.remove('hint');
+                secondCard.classList.remove('hint');
+                
+                // Re-enable hint button after cooldown
+                setTimeout(() => {
+                    hintBtn.disabled = false;
+                    hintBtn.classList.remove('disabled');
+                    hintActive = false;
+                }, 2000);
+            }, 1500);
+        }
+    }
+    
     // Event Listeners
-    newGameBtn.addEventListener('click', initGame);
-    hintBtn.addEventListener('click', giveHint);
+    newGameBtn.addEventListener('click', () => {
+        // Clear any active hints when starting a new game
+        if (hintTimeout) clearTimeout(hintTimeout);
+        hintActive = false;
+        initGame();
+    });
+    
+    hintBtn.addEventListener('click', showHint);
+    
     settingsBtn.addEventListener('click', toggleSettings);
     
     // Settings changes
