@@ -4,6 +4,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const newGameBtn = document.getElementById('new-game');
     const hintBtn = document.getElementById('hint-btn');
     const settingsBtn = document.getElementById('settings-btn');
+    const pauseBtn = document.getElementById('pause-btn');
     const settingsPanel = document.getElementById('settings-panel');
     const messageEl = document.getElementById('message');
     const difficultySelect = document.getElementById('difficulty');
@@ -11,7 +12,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const soundToggle = document.getElementById('sound-toggle');
     const timerEl = document.getElementById('timer');
     const bestScoreEl = document.getElementById('best-score');
-    
+
     // Game state
     let cards = [];
     let hasFlippedCard = false;
@@ -28,34 +29,84 @@ document.addEventListener('DOMContentLoaded', () => {
     let soundEnabled = true;
     let currentTheme = 'emojis';
     let stars = 3; // Maximum stars by default
-    
+    let isPaused = false;
+
     // Game settings
     let gameSettings = {
         difficulty: 'medium',
         theme: 'emojis',
         sound: true
     };
-    
-    // Sound elements
-    const sounds = {
-        flip: document.getElementById('flip-sound'),
-        match: document.getElementById('match-sound'),
-        win: document.getElementById('win-sound'),
-        hint: document.getElementById('hint-sound')
+
+    // Theme definitions
+    const themes = {
+        emojis: ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴', '🤠', '😇', '🤓', '😜', '😺', '🐶', '🦊', '🐻', '🐼', '🐨'],
+        animals: ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮', '🐷', '🐸', '🐵', '🐺', '🦒', '🦝'],
+        fruits: ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑', '🥭', '🍍', '🥥', '🥝', '🍅', '🍆']
     };
+
+    // Star thresholds per difficulty
+    const starThresholds = {
+        easy: { three: 12, two: 16, one: 20 },
+        medium: { three: 18, two: 24, one: 30 },
+        hard: { three: 30, two: 40, one: 50 }
+    };
+
+    // Sound configuration with Web Audio API fallback
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
     
+    // Sound frequencies for Web Audio fallback
+    const soundFrequencies = {
+        flip: 440,
+        match: 880,
+        win: 660,
+        hint: 550
+    };
+
     // Play sound if enabled
     const playSound = (soundName) => {
-        const sound = sounds[soundName];
-        if (sound && gameSettings.sound) {
-            sound.currentTime = 0;
-            sound.play().catch(e => console.log('Could not play sound:', e));
+        if (!gameSettings.sound) return;
+        
+        // Try to play HTML5 audio first
+        const soundElement = document.getElementById(`${soundName}-sound`);
+        if (soundElement) {
+            try {
+                soundElement.currentTime = 0;
+                soundElement.play().catch(e => {
+                    console.warn('HTML5 Audio failed, falling back to Web Audio');
+                    playFallbackSound(soundName);
+                });
+                return;
+            } catch (e) {
+                console.warn('Error with HTML5 Audio, falling back to Web Audio:', e);
+            }
         }
+        
+        // Fallback to Web Audio API
+        playFallbackSound(soundName);
     };
     
-    // Emoji pairs for the game
-    const emojis = ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴'];
-    
+    // Fallback sound using Web Audio API
+    function playFallbackSound(soundName) {
+        if (!audioContext) return;
+        
+        const oscillator = audioContext.createOscillator();
+        const gainNode = audioContext.createGain();
+        
+        oscillator.type = 'sine';
+        oscillator.frequency.value = soundFrequencies[soundName] || 440;
+        gainNode.gain.value = 0.1;
+        
+        oscillator.connect(gainNode);
+        gainNode.connect(audioContext.destination);
+        
+        const now = audioContext.currentTime;
+        oscillator.start(now);
+        gainNode.gain.exponentialRampToValueAtTime(0.1, now + 0.1);
+        gainNode.gain.exponentialRampToValueAtTime(0.001, now + 0.2);
+        oscillator.stop(now + 0.2);
+    }
+
     // Format time as MM:SS
     function formatTime(seconds) {
         const mins = Math.floor(seconds / 60);
@@ -70,10 +121,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Start the game timer
     function startTimer() {
-        // Clear any existing timer
         if (timerInterval) clearInterval(timerInterval);
-        
-        // Reset and start the timer
         seconds = 0;
         updateTimer();
         timerInterval = setInterval(() => {
@@ -92,54 +140,62 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Load settings from localStorage
     function loadSettings() {
-        const savedSettings = localStorage.getItem('gameSettings');
-        if (savedSettings) {
-            gameSettings = {...gameSettings, ...JSON.parse(savedSettings)};
+        try {
+            const savedSettings = localStorage.getItem('gameSettings');
+            if (savedSettings) {
+                const parsed = JSON.parse(savedSettings);
+                if (parsed.difficulty && ['easy', 'medium', 'hard'].includes(parsed.difficulty)) {
+                    gameSettings.difficulty = parsed.difficulty;
+                }
+                if (parsed.theme && ['emojis', 'animals', 'fruits'].includes(parsed.theme)) {
+                    gameSettings.theme = parsed.theme;
+                }
+                if (typeof parsed.sound === 'boolean') {
+                    gameSettings.sound = parsed.sound;
+                }
+            }
+        } catch (e) {
+            console.error('Failed to load settings:', e);
         }
-        
-        // Update UI to match settings
         difficultySelect.value = gameSettings.difficulty;
         themeSelect.value = gameSettings.theme;
         soundToggle.checked = gameSettings.sound;
     }
-    
+
     // Save settings to localStorage
     function saveSettings() {
-        localStorage.setItem('gameSettings', JSON.stringify(gameSettings));
+        try {
+            localStorage.setItem('gameSettings', JSON.stringify(gameSettings));
+        } catch (e) {
+            console.error('Failed to save settings:', e);
+        }
     }
-    
+
     // Apply theme to the game
     function applyTheme(theme) {
         document.body.setAttribute('data-theme', theme);
     }
-    
+
     // Initialize game
     function initGame() {
-        // Reset game state
-        gameBoard.innerHTML = ''; // Clear the board
+        gameBoard.innerHTML = '';
         gameBoard.className = 'game-board';
-        
-        // Set up board based on difficulty
         const difficulty = gameSettings.difficulty;
         if (difficulty === 'easy') {
             totalPairs = 6;
-            maxMoves = 20; // More lenient for easy mode
+            maxMoves = 20;
             gameBoard.classList.remove('hard');
         } else if (difficulty === 'hard') {
             totalPairs = 18;
-            maxMoves = 50; // More challenging for hard mode
+            maxMoves = 50;
             gameBoard.classList.add('hard');
-        } else { // medium
+        } else {
             totalPairs = 8;
-            maxMoves = 30; // Balanced for medium
+            maxMoves = 30;
             gameBoard.classList.remove('hard');
         }
-        
-        // Reset stars to max
         stars = 3;
         updateStarRating();
-        
-        // Reset game state
         cards = [];
         hasFlippedCard = false;
         lockBoard = false;
@@ -148,22 +204,17 @@ document.addEventListener('DOMContentLoaded', () => {
         matches = 0;
         moves = 0;
         seconds = 0;
-        
-        // Reset and start timer
+        isPaused = false;
+        pauseBtn.textContent = '⏸️';
+        pauseBtn.setAttribute('aria-label', 'Pause game');
         stopTimer();
         startTimer();
-        
-        // Update UI
         messageEl.textContent = 'Find all matching pairs!';
         messageEl.className = 'message';
-        
-        // Apply theme
         applyTheme(gameSettings.theme);
-        
-        // Create cards
         createCards();
     }
-    
+
     // Update star rating display
     function updateStarRating() {
         const starElements = document.querySelectorAll('.star');
@@ -174,48 +225,114 @@ document.addEventListener('DOMContentLoaded', () => {
                 star.classList.remove('filled');
             }
         });
+        document.querySelector('.star-rating').setAttribute('aria-label', `Star rating: ${stars} stars`);
     }
-    
+
     // Calculate stars based on moves
     function calculateStars() {
         const movesElement = document.getElementById('moves');
         if (movesElement) {
             movesElement.textContent = moves;
         }
+        const thresholds = starThresholds[gameSettings.difficulty];
+        stars = moves <= thresholds.three ? 3 :
+                moves <= thresholds.two ? 2 :
+                moves <= thresholds.one ? 1 : 0;
+        updateStarRating();
+    }
+
+    // Handle card flip
+    function flipCard(event) {
+        // Prevent default behavior if it's a keyboard event
+        if (event) {
+            event.preventDefault();
+            event.stopPropagation();
+            
+            // Prevent multiple rapid clicks
+            if (event.timeStamp - (this.lastClickTime || 0) < 500) {
+                console.log('Click too fast, ignoring');
+                return;
+            }
+            this.lastClickTime = event.timeStamp;
+        }
+
+        console.log('Attempting to flip card:', this.dataset.emoji, this);
         
-        const maxPossibleMoves = maxMoves;
-        const movePercentage = (moves / maxPossibleMoves) * 100;
-        
-        if (movePercentage < 60) {
-            stars = 3; // 3 stars for excellent performance
-        } else if (movePercentage < 80) {
-            stars = 2; // 2 stars for good performance
-        } else if (movePercentage < 100) {
-            stars = 1; // 1 star for average performance
-        } else {
-            stars = 0; // 0 stars for poor performance
+        // Check if the card can be flipped
+        if (lockBoard) {
+            console.log('Cannot flip: board is locked');
+            return;
         }
         
-        updateStarRating();
+        if (isPaused) {
+            console.log('Cannot flip: game is paused');
+            return;
+        }
+        
+        if (this === firstCard) {
+            console.log('Cannot flip: this is already the first card');
+            return;
+        }
+        
+        if (this.classList.contains('flipped')) {
+            console.log('Card already flipped');
+            return;
+        }
+        
+        if (this.classList.contains('matched')) {
+            console.log('Card already matched');
+            return;
+        }
+        
+        console.log('Flipping card:', this.dataset.emoji);
+        
+        // Flip the card with animation
+        this.classList.add('flipped');
+        this.setAttribute('aria-label', `Card, ${this.dataset.emoji}, flipped`);
+        
+        // Play flip sound if sound is enabled
+        if (gameSettings.sound) {
+            playSound('flip');
+        }
+
+        if (!hasFlippedCard) {
+            // First card flipped
+            console.log('First card flipped:', this.dataset.emoji);
+            hasFlippedCard = true;
+            firstCard = this;
+            return;
+        }
+        
+        // Second card flipped
+        console.log('Second card flipped:', this.dataset.emoji);
+        secondCard = this;
+        lockBoard = true;
+        moves++;
+        
+        // Update moves display
+        const movesElement = document.getElementById('moves');
+        if (movesElement) {
+            movesElement.textContent = moves;
+        }
+        
+        calculateStars();
+        checkForMatch();
     }
 
     // Create and shuffle cards
     function createCards() {
-        // Get emojis based on theme
-        let cardSymbols = [];
-        if (gameSettings.theme === 'animals') {
-            cardSymbols = ['🐶', '🐱', '🐭', '🐹', '🐰', '🦊', '🐻', '🐼', '🐨', '🐯', '🦁', '🐮'];
-        } else if (gameSettings.theme === 'fruits') {
-            cardSymbols = ['🍎', '🍐', '🍊', '🍋', '🍌', '🍉', '🍇', '🍓', '🫐', '🍈', '🍒', '🍑'];
-        } else { // emojis
-            cardSymbols = ['😊', '🤩', '😎', '🤗', '😍', '🤪', '🥳', '😴', '🤠', '😇', '🤓', '😜'];
-        }
-        
-        // Create pairs of cards
+        console.log('Creating cards...');
+        const fragment = document.createDocumentFragment();
+        let cardSymbols = themes[gameSettings.theme];
         const cardEmojis = [];
+        
+        // Reset cards array
+        cards = [];
+        
+        // Create pairs of emojis
         for (let i = 0; i < totalPairs; i++) {
-            cardEmojis.push(cardSymbols[i % cardSymbols.length]);
-            cardEmojis.push(cardSymbols[i % cardSymbols.length]);
+            const emoji = cardSymbols[i % cardSymbols.length];
+            cardEmojis.push(emoji, emoji); // Add each emoji twice for matching pairs
         }
         
         // Shuffle the cards
@@ -224,51 +341,93 @@ document.addEventListener('DOMContentLoaded', () => {
         // Create card elements
         shuffledCards.forEach((emoji, index) => {
             const card = document.createElement('div');
-            card.classList.add('card');
+            card.className = 'card';
             card.dataset.emoji = emoji;
+            card.dataset.index = index; // Add index for debugging
+            card.setAttribute('tabindex', '0');
+            card.setAttribute('role', 'button');
+            card.setAttribute('aria-label', `Card ${index}, unflipped`);
             
-            // Create card faces
+            // Create card inner elements
+            const cardInner = document.createElement('div');
+            cardInner.className = 'card-inner';
+            
             const cardFront = document.createElement('div');
-            cardFront.classList.add('card-content', 'card-front');
+            cardFront.className = 'card-front';
             cardFront.textContent = '?';
             
             const cardBack = document.createElement('div');
-            cardBack.classList.add('card-content', 'card-back');
+            cardBack.className = 'card-back';
             cardBack.textContent = emoji;
             
-            // Make sure card starts face down
-            card.style.transform = 'rotateY(180deg)';
+            cardInner.appendChild(cardFront);
+            cardInner.appendChild(cardBack);
+            card.appendChild(cardInner);
             
-            card.appendChild(cardFront);
-            card.appendChild(cardBack);
+            // Add click event listener
+            card.addEventListener('click', function() {
+                console.log('Card clicked:', index, emoji);
+                flipCard.call(this);
+            });
             
-            // Initialize card state
-            card.classList.remove('flipped', 'matched');
-            card.style.animation = '';
-            card.style.pointerEvents = 'auto';
-            
-            card.addEventListener('click', flipCard);
-            
-            // Add hover effect
-            card.addEventListener('mouseenter', () => {
-                if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
-                    card.style.transform = 'translateY(-5px) scale(1.02)';
-                    card.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.15)';
+            // Add keyboard support
+            card.addEventListener('keydown', function(e) {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    console.log('Card keyboard activated:', index, emoji);
+                    flipCard.call(this);
                 }
             });
             
-            card.addEventListener('mouseleave', () => {
-                if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
-                    card.style.transform = '';
-                    card.style.boxShadow = '';
+            // Add hover effects
+            card.addEventListener('mouseenter', function() {
+                if (!this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                    this.style.transform = 'translateY(-5px) scale(1.02)';
+                    this.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.15)';
                 }
             });
             
-            gameBoard.appendChild(card);
+            card.addEventListener('mouseleave', function() {
+                if (!this.classList.contains('flipped') && !this.classList.contains('matched')) {
+                    this.style.transform = '';
+                    this.style.boxShadow = '';
+                }
+            });
+            
+            // Add to fragment and cards array
+            fragment.appendChild(card);
             cards.push(card);
         });
+        
+                // Clear previous cards and add new ones
+        gameBoard.innerHTML = '';
+        gameBoard.appendChild(fragment);
+        console.log('Cards created:', cards.length);
     }
-    
+
+    /* ------------------------------------------------------------------
+       GAME RESET / NEW GAME HANDLING
+    ------------------------------------------------------------------*/
+    function resetAllCards() {
+        // Remove any pending hint timer
+        if (hintTimeout) {
+            clearTimeout(hintTimeout);
+            hintTimeout = null;
+        }
+        // Remove any lingering classes / inline styles
+        cards.forEach(card => {
+            card.classList.remove('flipped', 'matched', 'hint');
+            card.removeAttribute('style');
+            card.lastClickTime = 0;
+        });
+        // Clean arrays / flags
+        cards = [];
+        firstCard = null;
+        secondCard = null;
+        hasFlippedCard = false;
+        lockBoard = false;
+    }
+
     // Fisher-Yates shuffle algorithm
     function shuffleArray(array) {
         const newArray = [...array];
@@ -279,174 +438,311 @@ document.addEventListener('DOMContentLoaded', () => {
         return newArray;
     }
 
-    // Handle card flip
-    const flipCard = function() {
-        if (lockBoard) return;
-        if (this === firstCard) return;
-        if (this.classList.contains('flipped') || this.classList.contains('matched')) return;
+    // Check if the flipped cards match
+    function checkForMatch() {
+        console.log('Checking for match...');
         
-        // Add flip class which will trigger the transform via CSS
-        this.classList.add('flipped');
-        playSound('flip');
-        
-        if (!hasFlippedCard) {
-            // First card flipped
-            hasFlippedCard = true;
-            firstCard = this;
-            // Add subtle bounce effect
-            this.style.animation = 'bounce 0.5s ease';
+        // Safety check
+        if (!firstCard || !secondCard || !firstCard.dataset || !secondCard.dataset) {
+            console.error('Invalid cards for matching:', { firstCard, secondCard });
+            resetBoard();
             return;
         }
         
-        // Second card flipped
-        secondCard = this;
-        secondCard.style.animation = 'bounce 0.5s ease';
+        const firstEmoji = firstCard.dataset.emoji;
+        const secondEmoji = secondCard.dataset.emoji;
+        const isMatch = firstEmoji === secondEmoji;
         
-        // Lock the board while checking for match
-        lockBoard = true;
-        
-        // Update moves and check for match
-        moves++;
-        calculateStars();
-        
-        // Check for match after animation
-        setTimeout(() => {
-            checkForMatch();
-        }, 500);
-    };
-    
-    // Check if the flipped cards match
-    function checkForMatch() {
-        const isMatch = firstCard.dataset.emoji === secondCard.dataset.emoji;
+        console.log(`Matching cards: ${firstEmoji} and ${secondEmoji} - ${isMatch ? 'MATCH!' : 'No match'}`);
         
         if (isMatch) {
-            disableCards();
-            matches++;
+            // Mark cards as matched and keep them flipped
+            firstCard.classList.add('matched');
+            secondCard.classList.add('matched');
             
+            // Keep the cards flipped by ensuring the flipped class stays
+            firstCard.classList.add('flipped');
+            secondCard.classList.add('flipped');
+            
+            // Update accessibility
+            firstCard.setAttribute('aria-label', `Card, ${firstEmoji}, matched`);
+            secondCard.setAttribute('aria-label', `Card, ${secondEmoji}, matched`);
+            
+            // Add a visual effect for matched cards
+            firstCard.style.opacity = '0.8';
+            secondCard.style.opacity = '0.8';
+            
+            matches++;
+            console.log(`Matches: ${matches}/${totalPairs}`);
+            
+            // Play match sound if sound is enabled
+            if (gameSettings.sound) {
+                playSound('match');
+            }
+            
+            // Check for win condition
             if (matches === totalPairs) {
+                console.log('All matches found! Game won!');
                 endGame();
             }
+            
+            // Reset board after a short delay
+            setTimeout(() => {
+                resetBoard();
+            }, 500);
         } else {
-            unflipCards();
+            // No match, flip cards back after a delay
+            console.log('No match, flipping cards back');
+            
+            if (gameSettings.sound) {
+                playSound('flip');
+            }
+            
+            setTimeout(() => {
+                if (firstCard && !firstCard.classList.contains('matched')) {
+                    firstCard.classList.remove('flipped');
+                    firstCard.setAttribute('aria-label', `Card, ${firstCard.dataset.emoji}, unflipped`);
+                }
+                if (secondCard && !secondCard.classList.contains('matched')) {
+                    secondCard.classList.remove('flipped');
+                    secondCard.setAttribute('aria-label', `Card, ${secondCard.dataset.emoji}, unflipped`);
+                }
+                resetBoard();
+            }, 1000);
+        }
+        
+        // Check for game over condition
+        if (moves > maxMoves && matches < totalPairs) {
+            console.log('Game over - too many moves');
+            stopTimer();
+            if (messageEl) {
+                messageEl.textContent = 'Game Over! You\'ve used too many moves.';
+                messageEl.className = 'message';
+            }
+            lockBoard = true;
+            if (pauseBtn) {
+                pauseBtn.disabled = true;
+            }
         }
     }
-    
+
     // Disable matched cards
     function disableCards() {
         firstCard.classList.add('matched');
         secondCard.classList.add('matched');
-        
+        firstCard.setAttribute('aria-label', `Card, ${firstCard.dataset.emoji}, matched`);
+        secondCard.setAttribute('aria-label', `Card, ${secondCard.dataset.emoji}, matched`);
+        playSound('match');
         resetBoard();
     }
-    
+
     // Unflip cards that don't match
     function unflipCards() {
         lockBoard = true;
-        
         setTimeout(() => {
             firstCard.classList.remove('flipped');
             secondCard.classList.remove('flipped');
-            
+            firstCard.setAttribute('aria-label', `Card, ${firstCard.dataset.emoji}, unflipped`);
+            secondCard.setAttribute('aria-label', `Card, ${secondCard.dataset.emoji}, unflipped`);
             resetBoard();
         }, 1000);
     }
-    
+
     // Reset the board state
     function resetBoard() {
         [hasFlippedCard, lockBoard] = [false, false];
         [firstCard, secondCard] = [null, null];
     }
 
-    // Reset and start timer
-    stopTimer();
-    startTimer();
+    // End the game
+    function endGame() {
+        stopTimer();
+        playSound('win');
+        messageEl.textContent = `Congratulations! You won in ${moves} moves and ${formatTime(seconds)}!`;
+        messageEl.className = 'message celebration';
+        const bestTime = localStorage.getItem('bestTime');
+        if (!bestTime || seconds < parseInt(bestTime)) {
+            localStorage.setItem('bestTime', seconds);
+            bestScoreEl.textContent = formatTime(seconds);
+        }
+        createConfetti();
+        pauseBtn.disabled = true;
+    }
 
-    // Update UI
-    messageEl.textContent = 'Find all matching pairs!';
-    messageEl.className = 'message';
-
-    // Create cards
-    createCards();
+    // Create confetti animation
+    function createConfetti() {
+        for (let i = 0; i < 50; i++) {
+            const confetti = document.createElement('div');
+            confetti.classList.add('confetti');
+            confetti.style.backgroundColor = `hsl(${Math.random() * 360}, 100%, 50%)`;
+            confetti.style.left = `${Math.random() * 100}vw`;
+            confetti.style.top = `${Math.random() * 100}vh`;
+            confetti.style.animation = `fall ${1 + Math.random()}s linear`;
+            document.body.appendChild(confetti);
+            setTimeout(() => confetti.remove(), 3000);
+        }
+    }
 
     // Toggle settings panel
-    function toggleSettings() {
-        settingsPanel.classList.toggle('show');
+    function toggleSettings(event) {
+        if (event) event.stopPropagation();
+        
+        // Toggle the panel visibility
+        const isVisible = settingsPanel.classList.toggle('visible');
+        settingsPanel.setAttribute('aria-hidden', !isVisible);
+        settingsBtn.setAttribute('aria-expanded', isVisible);
+        settingsBtn.classList.toggle('active', isVisible);
+        
+        // Save settings when closing the panel
+        if (!isVisible) {
+            saveSettings();
+        }
     }
-    
+
     // Show a hint by highlighting a matching pair
     function showHint() {
-        if (hintActive || matches === totalPairs) return;
-
-        // Disable hint button temporarily
+        console.log('Hint button clicked');
+        if (hintActive) {
+            console.log('Hint already active');
+            return;
+        }
+        if (matches === totalPairs) {
+            console.log('All pairs matched');
+            return;
+        }
+        if (isPaused) {
+            console.log('Game is paused');
+            return;
+        }
+        
+        console.log('Activating hint...');
         hintActive = true;
         hintBtn.disabled = true;
         hintBtn.classList.add('disabled');
-
-        // Find all unpaired cards
+        
         const unpairedCards = Array.from(document.querySelectorAll('.card:not(.matched)'));
-
-        // Find a matching pair
+        console.log('Unpaired cards found:', unpairedCards.length);
+        
         let firstCard, secondCard;
         const emojiMap = new Map();
-
+        
+        // Find a matching pair
         for (const card of unpairedCards) {
             const emoji = card.dataset.emoji;
+            if (!emoji) {
+                console.log('Card missing emoji data:', card);
+                continue;
+            }
+            
             if (emojiMap.has(emoji)) {
                 firstCard = emojiMap.get(emoji);
                 secondCard = card;
+                console.log('Found matching pair:', { firstCard, secondCard });
                 break;
             }
             emojiMap.set(emoji, card);
         }
-
+        
         if (firstCard && secondCard) {
-            // Highlight the matching pair
+            console.log('Showing hint for pair');
             firstCard.classList.add('hint');
             secondCard.classList.add('hint');
-
-            // Play hint sound if available
-            const hintSound = document.getElementById('hint-sound');
-            if (hintSound) {
-                hintSound.currentTime = 0;
-                hintSound.play().catch(e => console.log('Could not play hint sound'));
-            }
-
-            // Remove highlight after delay
+            playSound('hint');
+            
             hintTimeout = setTimeout(() => {
+                console.log('Removing hint effect');
                 firstCard.classList.remove('hint');
                 secondCard.classList.remove('hint');
-
-                // Re-enable hint button after cooldown
+                
+                // Re-enable the hint button after a delay
                 setTimeout(() => {
                     hintBtn.disabled = false;
                     hintBtn.classList.remove('disabled');
                     hintActive = false;
+                    console.log('Hint deactivated');
                 }, 2000);
             }, 1500);
+        } else {
+            console.log('No matching pairs found');
+            // If no pairs found, reset the button
+            hintBtn.disabled = false;
+            hintBtn.classList.remove('disabled');
+            hintActive = false;
         }
     }
 
+    // Pause or resume game
+    function togglePause() {
+        if (matches === totalPairs || moves > maxMoves) return;
+        isPaused = !isPaused;
+        if (isPaused) {
+            stopTimer();
+            lockBoard = true;
+            messageEl.textContent = 'Game Paused';
+            pauseBtn.textContent = '▶️';
+            pauseBtn.setAttribute('aria-label', 'Resume game');
+        } else {
+            startTimer();
+            lockBoard = false;
+            messageEl.textContent = 'Find all matching pairs!';
+            pauseBtn.textContent = '⏸️';
+            pauseBtn.setAttribute('aria-label', 'Pause game');
+        }
+    }
+
+    // Add keyboard navigation for cards
+    function setupCardEventListeners(card) {
+        card.addEventListener('click', flipCard);
+        card.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                flipCard.call(card);
+            }
+        });
+        card.addEventListener('mouseenter', () => {
+            if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
+                card.style.transform = 'translateY(-5px) scale(1.02)';
+                card.style.boxShadow = '0 8px 20px rgba(0, 0, 0, 0.15)';
+            }
+        });
+        card.addEventListener('mouseleave', () => {
+            if (!card.classList.contains('flipped') && !card.classList.contains('matched')) {
+                card.style.transform = '';
+                card.style.boxShadow = '';
+            }
+        });
+    }
+
+    // Close settings when clicking outside
+    document.addEventListener('click', (e) => {
+        const isClickInside = settingsPanel.contains(e.target) || settingsBtn.contains(e.target);
+        if (!isClickInside && settingsPanel.getAttribute('aria-hidden') === 'false') {
+            settingsPanel.setAttribute('aria-hidden', 'true');
+            settingsBtn.setAttribute('aria-expanded', 'false');
+            settingsBtn.classList.remove('active');
+            saveSettings();
+        }
+    });
+
     // Event Listeners
     newGameBtn.addEventListener('click', () => {
-        // Clear any active hints when starting a new game
+        if (matches > 0 && matches < totalPairs && moves <= maxMoves && !isPaused) {
+            if (!confirm('Are you sure you want to start a new game? Your progress will be lost.')) {
+                return;
+            }
+        }
         if (hintTimeout) clearTimeout(hintTimeout);
         hintActive = false;
-        const bestTime = localStorage.getItem('bestTime');
-        if (bestTime) {
-            bestScoreEl.textContent = formatTime(parseInt(bestTime));
-        }
-        
-        // Initialize the game
+        hintBtn.disabled = false;
+        hintBtn.classList.remove('disabled');
+        pauseBtn.disabled = false;
         initGame();
     });
 
-    // Settings button event listener
     settingsBtn.addEventListener('click', toggleSettings);
-
-    // Hint button event listener
     hintBtn.addEventListener('click', showHint);
+    pauseBtn.addEventListener('click', togglePause);
 
-    // Settings change event listeners
     difficultySelect.addEventListener('change', (e) => {
         gameSettings.difficulty = e.target.value;
         saveSettings();
@@ -463,7 +759,23 @@ document.addEventListener('DOMContentLoaded', () => {
         saveSettings();
     });
 
+    // Initialize settings panel
+    if (settingsPanel) {
+        settingsPanel.style.display = ''; // Make sure it's visible for JS to work with
+    }
+    
     // Load settings and initialize game
     loadSettings();
-    initGame();
+    const bestTime = localStorage.getItem('bestTime');
+    if (bestTime && bestScoreEl) {
+        bestScoreEl.textContent = formatTime(parseInt(bestTime));
+    }
+    
+    // Make sure all required elements exist before initializing the game
+    if (gameBoard && newGameBtn && hintBtn && settingsBtn && pauseBtn && settingsPanel) {
+        initGame();
+    } else {
+        console.error('Required game elements not found');
+    }
 });
+

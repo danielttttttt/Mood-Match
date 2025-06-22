@@ -1,0 +1,27 @@
+{
+  "name": "Memory Match",
+  "short_name": "MemoryMatch",
+  "start_url": "./",
+  "display": "standalone",
+  "background_color": "#f5f7fa",
+  "theme_color": "#6B73FF",
+  "description": "A fun and challenging memory matching card game",
+  "icons": [
+    {
+      "src": "icon.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any maskable"
+    },
+    {
+      "src": "icon-512x512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "any maskable"
+    }
+  ],
+  "scope": "/",
+  "orientation": "portrait",
+  "prefer_related_applications": false,
+  "categories": ["games", "puzzle", "memory"]
+}

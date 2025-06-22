@@ -2,96 +2,177 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mood Match Game</title>
-    <link rel="stylesheet" href="styles.css">
-    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="theme-color" content="#6B73FF">
+    <meta name="description" content="A fun and challenging memory matching card game">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <link rel="manifest" href="./manifest.json">
+    <link rel="icon" type="image/png" href="./icon.png">
+    <link rel="apple-touch-icon" href="./icon.png">
+    <title>Memory Match - Test Your Memory Skills</title>
+    
+    <!-- Preconnect to external resources -->
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    
+    <!-- Preload critical CSS -->
+    <link rel="preload" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" as="style" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap"></noscript>
+    
+    <!-- Main CSS -->
+    <link rel="stylesheet" href="src/css/main.css">
 </head>
 <body>
     <div class="container">
-        <div class="header">
-            <h1>🎮 Mood Match</h1>
-            <button id="settings-btn" class="icon-btn" title="Game Settings">
-                <i class="fas fa-cog"></i>
-            </button>
-        </div>
-        
-        <div class="settings-panel" id="settings-panel">
+        <header class="header" role="banner">
+            <h1>🎮 Memory Match</h1>
+            <div class="controls">
+                <button id="settings-btn" class="icon-btn" aria-label="Game settings" aria-expanded="false" aria-controls="settings-panel">
+                    <span aria-hidden="true">⚙️</span>
+                </button>
+                <button id="hint-btn" class="icon-btn" aria-label="Get a hint" title="Get a hint">
+                    <span aria-hidden="true">💡</span>
+                </button>
+            </div>
+        </header>
+
+        <div id="settings-panel" class="settings-panel" role="region" aria-labelledby="settings-heading" aria-hidden="true" style="display: none;">
+            <h2 id="settings-heading" class="visually-hidden">Game Settings</h2>
             <div class="setting-group">
                 <label for="difficulty">Difficulty:</label>
-                <select id="difficulty">
-                    <option value="easy">Easy (4x4)</option>
-                    <option value="medium" selected>Medium (4x4)</option>
-                    <option value="hard">Hard (6x6)</option>
+                <select id="difficulty" aria-label="Select game difficulty">
+                    <option value="easy">Easy (4×4)</option>
+                    <option value="medium">Medium (4×4)</option>
+                    <option value="hard">Hard (6×6)</option>
                 </select>
             </div>
             <div class="setting-group">
                 <label for="theme">Theme:</label>
-                <select id="theme">
+                <select id="theme" aria-label="Select game theme">
                     <option value="emojis">Emojis</option>
                     <option value="animals">Animals</option>
                     <option value="fruits">Fruits</option>
                 </select>
             </div>
             <div class="setting-group">
+                <span>Sound:</span>
                 <label class="switch">
-                    <input type="checkbox" id="sound-toggle" checked>
-                    <span class="slider round"></span>
+                    <input id="sound-toggle" type="checkbox" checked aria-label="Toggle sound">
+                    <span class="slider"></span>
                 </label>
-                <span>Sound</span>
             </div>
         </div>
-        
-        <div class="game-info">
+
+        <div class="game-info" role="status" aria-live="polite">
             <div class="stats">
-                <div class="stat">
-                    <i class="fas fa-stopwatch"></i>
+                <div class="stat" aria-label="Time">
+                    <span>⏱️</span>
                     <span id="timer">00:00</span>
                 </div>
-                <div class="stat">
-                    <i class="fas fa-star"></i>
+                <div class="stat" aria-label="Moves">
+                    <span>↻</span>
                     <span id="moves">0</span>
                 </div>
-                <div class="star-rating" id="star-rating">
-                    <span class="star filled">★</span>
-                    <span class="star filled">★</span>
-                    <span class="star filled">★</span>
+                <div class="stat star-rating" aria-label="Star rating: 3 out of 3">
+                    <span class="star filled" aria-hidden="true">★</span>
+                    <span class="star filled" aria-hidden="true">★</span>
+                    <span class="star filled" aria-hidden="true">★</span>
                 </div>
-                <div class="stat">
-                    <i class="fas fa-trophy"></i>
+                <div class="stat" aria-label="Best time">
+                    <span>🏆</span>
                     <span id="best-score">--:--</span>
-                </div>
-                <div class="stat">
-                    <i class="fas fa-star"></i>
-                    <span id="stars">★★★</span>
                 </div>
             </div>
             <div class="controls">
-                <button id="hint-btn" class="icon-btn" title="Get a Hint">
-                    <i class="fas fa-lightbulb"></i>
+                <button id="pause-btn" class="icon-btn" aria-label="Pause game">
+                    <span aria-hidden="true">⏸️</span>
                 </button>
-                <button id="new-game">
-                    <i class="fas fa-redo"></i> New Game
-                </button>
+                <button id="new-game" class="btn-primary">New Game</button>
             </div>
         </div>
-        
-        <div class="game-board" id="game-board">
-            <!-- Cards will be generated by JavaScript -->
-        </div>
-        
-        <div class="message" id="message">
-            <p>Select a difficulty and click New Game to start!</p>
+
+        <main id="game-board" class="game-board" role="main" aria-label="Game board">
+            <!-- Cards will be dynamically inserted here -->
+        </main>
+
+        <div id="message" class="message" role="alert" aria-live="assertive">
+            Select a difficulty and click New Game to start!
         </div>
     </div>
+
+    <!-- Confetti container for win animation -->
+    <div id="confetti-container" class="confetti-container" aria-hidden="true"></div>
     
-    <!-- Audio elements -->
-    <audio id="flip-sound" src="https://assets.mixkit.co/active_storage/sfx/2571/2571-preview.mp3"></audio>
-    <audio id="match-sound" src="https://assets.mixkit.co/active_storage/sfx/2578/2578-preview.mp3"></audio>
-    <audio id="win-sound" src="https://assets.mixkit.co/active_storage/sfx/2570/2570-preview.mp3"></audio>
-    <audio id="hint-sound" src="https://assets.mixkit.co/active_storage/sfx/2585/2585-preview.mp3"></audio>
+    <!-- Offline Status Indicator -->
+    <div id="offline-status" class="offline-status" aria-live="polite" hidden>
+      <div class="offline-message">
+        <span class="offline-icon">📶</span>
+        <span>You are currently offline. Some features may be limited.</span>
+      </div>
+    </div>
+
+    <!-- Game Sounds (hidden) -->
+    <audio id="flip-sound" preload="auto">
+      <source src="sounds/flip.mp3" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+    <audio id="match-sound" preload="auto">
+      <source src="sounds/match.mp3" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+    <audio id="win-sound" preload="auto">
+      <source src="sounds/win.mp3" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
+    <audio id="hint-sound" preload="auto">
+      <source src="sounds/hint.mp3" type="audio/mpeg">
+      Your browser does not support the audio element.
+    </audio>
     
+    <!-- Main Game Script -->
     <script src="script.js"></script>
+    
+    <!-- Register Service Worker -->
+    <script>
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('./sw.js')
+                    .then(registration => {
+                        console.log('ServiceWorker registration successful with scope: ', registration.scope);
+                    })
+                    .catch(err => {
+                        console.error('ServiceWorker registration failed: ', err);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- Update online/offline status -->
+    <script>
+      function updateOnlineStatus() {
+        const offlineStatus = document.getElementById('offline-status');
+        if (!navigator.onLine) {
+          offlineStatus.hidden = false;
+        } else {
+          offlineStatus.hidden = true;
+        }
+      }
+      
+      window.addEventListener('online', updateOnlineStatus);
+      window.addEventListener('offline', updateOnlineStatus);
+      updateOnlineStatus(); // Initial check
+    </script>
+    
+    <!-- Load legacy browsers support -->
+    <script nomodule>
+        document.body.innerHTML = '<div style="text-align: center; padding: 2rem; font-family: sans-serif;">' +
+            '<h1>Browser Not Supported</h1>' +
+            '<p>This game requires a modern browser with JavaScript modules support.</p>' +
+            '<p>Please use the latest version of Chrome, Firefox, Safari, or Edge.</p>' +
+            '<a href="https://browsehappy.com/" style="color: #6B73FF; text-decoration: underline;">' +
+            'Update your browser</a>' +
+            '</div>';
+    </script>
 </body>
 </html>
