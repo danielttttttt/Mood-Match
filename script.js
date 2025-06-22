@@ -29,6 +29,38 @@ document.addEventListener('DOMContentLoaded', () => {
     let soundEnabled = true;
     let currentTheme = 'emojis';
     let stars = 3; // Maximum stars by default
+
+    /* ------------------------------------------------------------------
+       TIMER HELPERS (see unified implementation below)
+    ------------------------------------------------------------------*/
+    
+    /* ------------------------------------------------------------------
+       STAR DISPLAY & NEW GAME HELPERS
+    ------------------------------------------------------------------*/
+    function updateStarDisplay() {
+        const starEls = document.querySelectorAll('.star');
+        starEls.forEach((star, idx) => {
+            if (idx < stars) star.classList.add('filled');
+            else star.classList.remove('filled');
+        });
+    }
+
+    function calculateMaxMoves() {
+        const diff = gameSettings.difficulty;
+        maxMoves = starThresholds[diff].one;
+        // Adjust totalPairs based on difficulty (4×4 = 8 pairs, 6×6 = 18 pairs)
+        totalPairs = diff === 'hard' ? 18 : 8;
+    }
+
+    function startNewGame() {
+        console.log('Starting new game with diff', gameSettings.difficulty, 'and theme', gameSettings.theme);
+        resetAllCards();
+        calculateMaxMoves();
+        createCards();
+        updateStarDisplay();
+        startTimer();
+    }
+    
     let isPaused = false;
 
     // Game settings
@@ -51,6 +83,20 @@ document.addEventListener('DOMContentLoaded', () => {
         medium: { three: 18, two: 24, one: 30 },
         hard: { three: 30, two: 40, one: 50 }
     };
+
+    // bind new game button
+    newGameBtn?.addEventListener('click', startNewGame);
+    difficultySelect?.addEventListener('change', (e)=>{
+        gameSettings.difficulty = e.target.value;
+        startNewGame();
+    });
+    themeSelect?.addEventListener('change', (e)=>{
+        gameSettings.theme = e.target.value;
+        startNewGame();
+    });
+
+    // launch first game
+    startNewGame();
 
     // Sound configuration with Web Audio API fallback
     const audioContext = new (window.AudioContext || window.webkitAudioContext)();
@@ -409,6 +455,15 @@ document.addEventListener('DOMContentLoaded', () => {
        GAME RESET / NEW GAME HANDLING
     ------------------------------------------------------------------*/
     function resetAllCards() {
+        // Clear game info displays
+        document.getElementById('moves').textContent = 0;
+        stars = 3;
+        updateStarDisplay();
+        seconds = 0;
+        updateTimer();
+        matches = 0;
+        moves = 0;
+        stopTimer();
         // Remove any pending hint timer
         if (hintTimeout) {
             clearTimeout(hintTimeout);
